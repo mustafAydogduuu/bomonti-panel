@@ -70,6 +70,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .gate h1{font:800 32px/1.1 var(--display);margin:0;text-wrap:balance}
 .gate p{color:var(--muted);margin:0}
 .config{font:500 13px var(--mono);color:var(--warn)}
+.preview{display:flex;gap:12px;align-items:center}
+.preview img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.check{flex-direction:row;align-items:flex-start;gap:10px;font-weight:600}
+.check input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--accent)}
 #apple-sign-in-button,#apple-sign-out-button{min-height:32px}
 </style>
 </head>
@@ -117,7 +121,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         </div>
         <label>Açıklama<textarea id="body" required placeholder="Kısa açıklama, saat, bilet bilgisi, kaynak…"></textarea></label>
         <label>İletişim <span class="hint">isteğe bağlı: telefon, link</span><input id="contact" maxlength="200"></label>
-        <label>Görsel <span class="hint">isteğe bağlı</span><input id="image" type="file" accept="image/*"><span class="hint" id="imageNote"></span></label>
+        <label>Görsel <span class="hint">isteğe bağlı, tek görsel; yüklemeden önce otomatik küçültülür</span><input id="image" type="file" accept="image/*"><span class="hint" id="imageNote"></span></label>
+        <div class="preview" id="preview" hidden><img id="previewImg" alt="Seçilen görselin önizlemesi"><button class="btn" type="button" id="clearImage">Görseli kaldır</button></div>
+        <label class="check" id="notifyRow" hidden><input id="notify" type="checkbox"><span>Bildirim gönder<br><span class="hint">Yayınlayınca uygulamayı yükleyip bildirime izin veren herkese bu kaydın başlığıyla bildirim gider. Her kayıt için bir kez.</span></span></label>
         <div class="actions">
           <button class="btn primary" type="submit" id="saveBtn">Yayınla</button>
           <button class="btn" type="button" id="newBtn">Yeni kayıt</button>
@@ -136,6 +142,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 
 <script src="https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"></script>
 <script>
+const NOTIFY_URL = "https://stark-peacock-7721.bomontinews.deno.net";
 const API_TOKEN = "6bbe73b896c03cb94922a16a855989ff9c04d2be972935e10bddf47faca929ea";
 const CONTAINER = "iCloud.com.bomonti.rehberi";
 const VENUES = [{"id": "starbucks-bomonti", "name": "Starbucks (Bomonti Apartmanı Şb.)", "cat": "kafe"}, {"id": "montag-coffee-bomonti", "name": "Montag Coffee Roasters (Bomonti Şb.)", "cat": "kafe"}, {"id": "cargo-coffee-bomonti", "name": "Cargo Coffee Co.", "cat": "kafe"}, {"id": "kozmos-coffee", "name": "Kozmos Coffee-Pub", "cat": "kafe"}, {"id": "but-first-coffee", "name": "But First Coffee", "cat": "kafe"}, {"id": "moc-bomonti", "name": "Moc Bomonti", "cat": "kafe"}, {"id": "refectory-coffee-bakery", "name": "Refectory Coffee - Bakery", "cat": "kafe"}, {"id": "new-town-coffee", "name": "New Town Coffee", "cat": "kafe"}, {"id": "halisunasyon-coffee-art", "name": "Halisünasyon Coffee • Art", "cat": "kafe"}, {"id": "the-populist", "name": "The Populist", "cat": "restoran"}, {"id": "babylon-bomonti", "name": "Babylon Bomonti", "cat": "restoran"}, {"id": "blok-mekan", "name": "Blok Mekan", "cat": "restoran"}, {"id": "rovers-irish-pub", "name": "Rovers Irish Pub", "cat": "restoran"}, {"id": "turk-fatih-tutak", "name": "TURK Fatih Tutak", "cat": "restoran"}, {"id": "kaya-doner", "name": "Kaya Döner", "cat": "restoran"}, {"id": "sunny-smash-burger", "name": "Sunny Smash Burger", "cat": "restoran"}, {"id": "cross-fingers-bomonti", "name": "Cross Fingers", "cat": "restoran"}, {"id": "norr-eatery", "name": "Norr Eatery", "cat": "restoran"}, {"id": "biber-burger", "name": "Biber Burger", "cat": "restoran"}, {"id": "dominos-bomonti", "name": "Domino's Pizza (Bomonti Şb.)", "cat": "restoran"}, {"id": "little-caesars-bomonti", "name": "Little Caesars (Bomonti Şb.)", "cat": "restoran"}, {"id": "casa-cooklife", "name": "Casa Cooklife", "cat": "restoran"}, {"id": "kiva-bomonti", "name": "Kiva Bomonti", "cat": "restoran"}, {"id": "isola-bomonti", "name": "Isola Food + Cocktail Bar", "cat": "restoran"}, {"id": "batard-bomonti", "name": "Batard", "cat": "restoran"}, {"id": "wu-bomonti", "name": "Wu Bomonti", "cat": "restoran"}, {"id": "the-ordinary-bomonti", "name": "The Ordinary Bomonti", "cat": "restoran"}, {"id": "cloud-34", "name": "Cloud 34", "cat": "restoran"}, {"id": "seoul-kitchen-bomontiada", "name": "Seoul Kitchen", "cat": "restoran"}, {"id": "bart-bomonti", "name": "Bart", "cat": "restoran"}, {"id": "tiflisi-restoran", "name": "Tiflisi Restoran", "cat": "restoran"}, {"id": "gyuto-gida", "name": "Gyuto Gıda (Sushi & Chinese)", "cat": "restoran"}, {"id": "merletto-pizza", "name": "Merletto Pizza", "cat": "restoran"}, {"id": "plus-sandwich", "name": "Plus Sandwich", "cat": "restoran"}, {"id": "bahar-pastanesi-bomonti", "name": "Bahar Pastanesi (Bomonti Şubesi)", "cat": "esnaf"}, {"id": "bircan-market", "name": "Bircan Market", "cat": "esnaf"}, {"id": "ferikoy-antika-pazari", "name": "Feriköy Antika Pazarı", "cat": "esnaf"}, {"id": "ferikoy-organik-pazari", "name": "Feriköy Organik Pazarı", "cat": "esnaf"}, {"id": "akat-pastanesi", "name": "Akat Pastanesi", "cat": "esnaf"}, {"id": "sutluce-kadayif", "name": "Sütlüce Kadayıf", "cat": "esnaf"}, {"id": "cagdas-borek", "name": "Çağdaş Börek", "cat": "esnaf"}, {"id": "marsel-delights", "name": "Marsel Delights", "cat": "esnaf"}, {"id": "rio-pastanesi", "name": "Rio Pastanesi", "cat": "esnaf"}, {"id": "gelateria-bonacci", "name": "Gelateria Bonacci", "cat": "esnaf"}, {"id": "mood-pilates", "name": "Mood Pilates", "cat": "esnaf"}, {"id": "vigor-pilates-bomonti", "name": "Vigor Pilates Bomonti", "cat": "esnaf"}, {"id": "griffin-bomonti", "name": "Griffin Bomonti", "cat": "esnaf"}, {"id": "ara-guler-muzesi", "name": "Ara Güler Müzesi", "cat": "atolye"}, {"id": "atolye-bomontiada", "name": "ATÖLYE", "cat": "atolye"}, {"id": "bomonti-art-studio", "name": "Bomonti Art Studio", "cat": "atolye"}, {"id": "bomonti-eczanesi", "name": "Bomonti Eczanesi", "cat": "eczane"}, {"id": "elysium-eczanesi", "name": "Elysium Eczanesi", "cat": "eczane"}, {"id": "sisli-merkez-eczanesi", "name": "Şişli Merkez Eczanesi", "cat": "eczane"}, {"id": "hulya-hatun-eczanesi", "name": "Hülya Hatun Eczanesi", "cat": "eczane"}, {"id": "nefes-eczanesi", "name": "Nefes Eczanesi", "cat": "eczane"}, {"id": "ferikoy-merkez-eczanesi", "name": "Feriköy Merkez Eczanesi", "cat": "eczane"}, {"id": "sisli-etfal-bomonti", "name": "Şişli Etfal Bomonti Ek Hizmet Binası", "cat": "hastane"}, {"id": "nisantasi-aile-sagligi-merkezi", "name": "Nişantaşı Aile Sağlığı Merkezi", "cat": "hastane"}, {"id": "green-line-veteriner", "name": "Green Line Veteriner Kliniği", "cat": "hastane"}, {"id": "hilton-istanbul-bomonti", "name": "Hilton Istanbul Bomonti Hotel & Conference Center", "cat": "otel"}, {"id": "mercure-istanbul-bomonti", "name": "Mercure Istanbul Bomonti", "cat": "otel"}, {"id": "gleam-bomonti-hotel", "name": "Gleam Bomonti Hotel", "cat": "otel"}, {"id": "la-wisteria-bomonti", "name": "La Wisteria Boutique Hotel Istanbul", "cat": "otel"}, {"id": "sparkle-hotel", "name": "Sparkle Hotel", "cat": "otel"}, {"id": "ramada-encore-sisli", "name": "Ramada Encore by Wyndham Istanbul Sisli", "cat": "otel"}, {"id": "7-bomonti-kuafor", "name": "7 Bomonti Kuaför", "cat": "kuafor"}, {"id": "hair-mess-bomonti", "name": "Hair Mess Bomonti", "cat": "kuafor"}, {"id": "duru-bomonti", "name": "Duru Bomonti", "cat": "kuafor"}, {"id": "bomonti-pet-kuaforu", "name": "Bomonti Pet Kuaförü", "cat": "kuafor"}, {"id": "jammins-vinyl-records", "name": "Jammin's Vinyl Records", "cat": "kitap"}, {"id": "gold-plak", "name": "Gold Plak", "cat": "kitap"}];
@@ -222,6 +229,8 @@ $("category").onchange=syncDateRow;
 function resetForm(){
   current=null; $("form").reset(); $("formTitle").textContent="Yeni kayıt"; $("saveBtn").textContent="Yayınla";
   $("delBtn").hidden=true; $("confirm").hidden=true; $("imageNote").textContent="";
+  pendingImage=null; removeImage=false; $("preview").hidden=true;
+  $("notifyRow").hidden=!NOTIFY_URL.startsWith("https"); $("notify").checked=false;
   $("category").value = filter==="duyuru" ? "duyuru" : "etkinlik"; syncDateRow(); render();
 }
 $("newBtn").onclick=resetForm;
@@ -235,9 +244,37 @@ function edit(r){
   const ev=val(r,"eventDate");
   if(ev){ const d=new Date(ev); $("eventDay").value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; $("eventTime").value=hasTime(ev)?`${pad(d.getHours())}:${pad(d.getMinutes())}`:""; }
   else { $("eventDay").value=""; $("eventTime").value=""; }
-  $("image").value=""; $("imageNote").textContent = r.fields.image ? "Bu kayıtta bir görsel var; yeni dosya seçersen değiştirilir." : "";
+  $("image").value=""; pendingImage=null; removeImage=false;
+  $("notifyRow").hidden=true;
+  if(r.fields.image && r.fields.image.value && r.fields.image.value.downloadURL){ $("previewImg").src=r.fields.image.value.downloadURL; $("preview").hidden=false; $("imageNote").textContent="Bu kayıtta bir görsel var; yeni dosya seçersen değiştirilir."; }
+  else { $("preview").hidden=true; $("imageNote").textContent=""; }
   syncDateRow(); render(); window.scrollTo({top:0,behavior:"smooth"});
 }
+
+let pendingImage=null, removeImage=false;
+const MAX_SIDE=1600, QUALITY=0.82;
+function compress(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1, MAX_SIDE/Math.max(img.naturalWidth,img.naturalHeight));
+      const c=document.createElement("canvas"); c.width=Math.round(img.naturalWidth*scale); c.height=Math.round(img.naturalHeight*scale);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      c.toBlob(b=> b ? resolve(new File([b],"gorsel.jpg",{type:"image/jpeg"})) : reject(new Error("encode")), "image/jpeg", QUALITY);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("decode")); };
+    img.src=url;
+  });
+}
+$("image").onchange=async()=>{
+  const f=$("image").files[0]; if(!f) return;
+  try{
+    pendingImage=await compress(f); removeImage=false;
+    $("previewImg").src=URL.createObjectURL(pendingImage); $("preview").hidden=false;
+    $("imageNote").textContent=`Küçültüldü: ${(f.size/1048576).toFixed(1)} MB → ${Math.max(1,Math.round(pendingImage.size/1024))} KB`;
+  }catch(err){ pendingImage=null; $("image").value=""; $("preview").hidden=true; toast("Bu görsel açılamadı. JPEG veya PNG bir dosya dene."); }
+};
+$("clearImage").onclick=()=>{ pendingImage=null; removeImage=!!(current&&current.fields.image); $("image").value=""; $("preview").hidden=true; $("imageNote").textContent=removeImage?"Kaydettiğinde görsel kaldırılacak.":""; };
 
 $("form").onsubmit=async e=>{
   e.preventDefault();
@@ -258,7 +295,8 @@ $("form").onsubmit=async e=>{
     eventDate:{value:eventDate},
     createdAt:{value: current ? (val(current,"createdAt")||Date.now()) : Date.now()}
   };
-  const file=$("image").files[0]; if(file) fields.image={value:file};
+  if(pendingImage) fields.image={value:pendingImage};
+  else if(removeImage) fields.image={value:null};
   const rec={recordType:"Post", fields};
   if(current){ rec.recordName=current.recordName; rec.recordChangeTag=current.recordChangeTag; }
   else { rec.recordName=crypto.randomUUID().toUpperCase(); }
@@ -266,11 +304,22 @@ $("form").onsubmit=async e=>{
   try{
     const res=await db.saveRecords([rec]);
     if(res.hasErrors) throw res.errors[0];
-    toast(current?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.");
+    const saved=res.records[0];
+    let msg=current?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.";
+    if(!current && $("notify").checked && NOTIFY_URL.startsWith("https")) msg += " " + await sendNotification(saved.recordName);
+    toast(msg);
     await load(); resetForm();
   }catch(err){ toast(explain(err)); }
   finally{ $("saveBtn").disabled=false; }
 };
+
+async function sendNotification(recordName){
+  try{
+    const r=await fetch(NOTIFY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recordName})});
+    const j=await r.json().catch(()=>({}));
+    return j.message || (r.ok?"Bildirim gönderildi.":"Bildirim gönderilemedi.");
+  }catch{ return "Bildirim sunucusuna ulaşılamadı."; }
+}
 
 $("delBtn").onclick=()=>{$("confirm").hidden=false;};
 $("cancelDel").onclick=()=>{$("confirm").hidden=true;};
