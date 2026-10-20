@@ -288,11 +288,11 @@ function explain(err){
   if(code==="NOT_AUTHENTICATED"||code==="AUTHENTICATION_REQUIRED") return "Oturumun kapanmış. Sayfayı yenileyip tekrar giriş yap.";
   if(code==="ACCESS_DENIED"||code==="PERMISSION_FAILURE") return "Bu hesabın kayıt ekleme yetkisi yok.";
   if(code==="CONFLICT") return "Kayıt başka yerden değiştirilmiş. Listeyi yenileyip tekrar dene.";
-  return "İşlem tamamlanamadı: " + (err && (err.reason||err.message) || "bilinmeyen hata");
+  return "İşlem tamamlanamadı (" + (code||"?") + "): " + (err && (err.reason||err.message) || "bilinmeyen hata");
 }
 
 async function load(){
-  const res=await db.performQuery({recordType:"Post"},{resultsLimit:200, desiredKeys:null});
+  const res=await db.performQuery({recordType:"Post"},{resultsLimit:200});
   if(res.hasErrors) throw res.errors[0];
   records=res.records.sort((a,b)=>(val(b,"createdAt")||0)-(val(a,"createdAt")||0));
   render();
