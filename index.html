@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BomontiNEWS Yönetim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: two-pane desk — record list on the left, editor on the right; stacks on phones */
+:root{
+  --bg:#f4f6f1; --surface:#ffffff; --ink:#18263a; --muted:#5f6f7e; --line:#dde3dc;
+  --accent:#e63946; --accent-ink:#ffffff; --teal:#2f7f86; --ok:#2e7d4f; --warn:#b26a00;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Source Sans 3", "Helvetica Neue", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161e; --surface:#16212d; --ink:#eef2ec; --muted:#9fb0be; --line:#26323f;
+  --accent:#ff5d63; --accent-ink:#1a0d0e; --teal:#5fb6bd; --ok:#5ec48a; --warn:#f0a840; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161e; --surface:#16212d; --ink:#eef2ec; --muted:#9fb0be; --line:#26323f;
+  --accent:#ff5d63; --accent-ink:#1a0d0e; --teal:#5fb6bd; --ok:#5ec48a; --warn:#f0a840; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.brand{font:800 26px/1 var(--display);letter-spacing:-.5px}
+.brand b{color:var(--accent)}
+.brand small{display:block;font:500 11px/1.4 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.auth{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.list-head{display:flex;gap:8px;flex-wrap:wrap;padding:14px;border-bottom:1px solid var(--line)}
+.chip{font:600 13px var(--body);padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;text-align:left;color:inherit;font:inherit;width:100%}
+.row:hover,.row[aria-current="true"]{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.row:last-child{border-bottom:0}
+.date{font:500 12px/1.3 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.date strong{display:block;font:800 22px/1 var(--display);color:var(--ink)}
+.title{font-weight:600;overflow-wrap:anywhere}
+.meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.tag{font:500 11px var(--mono);letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.tag.etkinlik{background:color-mix(in srgb,var(--teal) 16%,transparent);color:var(--teal)}
+.tag.duyuru,.tag.genel,.tag.kampanya,.tag.kayip{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted)}
+.tag.past{opacity:.6}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+form{padding:18px;display:flex;flex-direction:column;gap:14px}
+form h2{font:800 20px var(--display);margin:0}
+label{display:flex;flex-direction:column;gap:6px;font:600 13px var(--body)}
+label span.hint{font-weight:400;color:var(--muted)}
+input,select,textarea{font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:130px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{font:600 15px var(--body);border-radius:10px;padding:10px 16px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.btn:disabled{opacity:.5;cursor:default}
+.confirm{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+.gate{max-width:520px;margin:60px auto;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+.gate h1{font:800 32px/1.1 var(--display);margin:0;text-wrap:balance}
+.gate p{color:var(--muted);margin:0}
+.config{font:500 13px var(--mono);color:var(--warn)}
+#apple-sign-in-button,#apple-sign-out-button{min-height:32px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">BOMONTİ<b>NEWS</b><small>Etkinlik &amp; duyuru yönetimi</small></div>
+    <div class="auth"><span id="who"></span><div id="apple-sign-out-button"></div></div>
+  </header>
+
+  <section class="gate" id="gate">
+    <h1>Panele Apple hesabınla gir</h1>
+    <p>Buradan eklediğin, düzenlediğin ya da sildiğin her etkinlik ve duyuru BomontiNEWS uygulamasında anında görünür.</p>
+    <div id="apple-sign-in-button"></div>
+    <p class="config" id="configMsg" hidden></p>
+  </section>
+
+  <main class="grid" id="app" hidden>
+    <section class="panel" aria-label="Kayıtlar">
+      <div class="list-head" id="filters"></div>
+      <div class="rows" id="rows"><div class="empty">Kayıtlar yükleniyor…</div></div>
+    </section>
+
+    <section class="panel" aria-label="Düzenleyici">
+      <form id="form" novalidate>
+        <h2 id="formTitle">Yeni kayıt</h2>
+        <div class="two">
+          <label>Kategori
+            <select id="category">
+              <option value="etkinlik">Etkinlik</option>
+              <option value="duyuru">Duyuru</option>
+              <option value="kampanya">Kampanya</option>
+              <option value="kayip">Kayıp İlan</option>
+              <option value="genel">Genel</option>
+            </select>
+          </label>
+          <label>Mekan
+            <select id="venue"><option value="">Mekan yok</option></select>
+          </label>
+        </div>
+        <label>Başlık<input id="title" required maxlength="120" placeholder="Örn. Isabel van Gelder Konseri"></label>
+        <div class="two" id="dateRow">
+          <label>Tarih<input id="eventDay" type="date"></label>
+          <label>Saat <span class="hint">isteğe bağlı</span><input id="eventTime" type="time"></label>
+        </div>
+        <label>Açıklama<textarea id="body" required placeholder="Kısa açıklama, saat, bilet bilgisi, kaynak…"></textarea></label>
+        <label>İletişim <span class="hint">isteğe bağlı: telefon, link</span><input id="contact" maxlength="200"></label>
+        <label>Görsel <span class="hint">isteğe bağlı</span><input id="image" type="file" accept="image/*"><span class="hint" id="imageNote"></span></label>
+        <div class="actions">
+          <button class="btn primary" type="submit" id="saveBtn">Yayınla</button>
+          <button class="btn" type="button" id="newBtn">Yeni kayıt</button>
+          <button class="btn danger" type="button" id="delBtn" hidden>Sil</button>
+        </div>
+        <div class="confirm" id="confirm" hidden>
+          <span>Bu kayıt uygulamadan kalıcı olarak silinecek.</span>
+          <button class="btn danger" type="button" id="confirmDel">Evet, sil</button>
+          <button class="btn" type="button" id="cancelDel">Vazgeç</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"></script>
+<script>
+const API_TOKEN = "6bbe73b896c03cb94922a16a855989ff9c04d2be972935e10bddf47faca929ea";
+const CONTAINER = "iCloud.com.bomonti.rehberi";
+const VENUES = [{"id": "starbucks-bomonti", "name": "Starbucks (Bomonti Apartmanı Şb.)", "cat": "kafe"}, {"id": "montag-coffee-bomonti", "name": "Montag Coffee Roasters (Bomonti Şb.)", "cat": "kafe"}, {"id": "cargo-coffee-bomonti", "name": "Cargo Coffee Co.", "cat": "kafe"}, {"id": "kozmos-coffee", "name": "Kozmos Coffee-Pub", "cat": "kafe"}, {"id": "but-first-coffee", "name": "But First Coffee", "cat": "kafe"}, {"id": "moc-bomonti", "name": "Moc Bomonti", "cat": "kafe"}, {"id": "refectory-coffee-bakery", "name": "Refectory Coffee - Bakery", "cat": "kafe"}, {"id": "new-town-coffee", "name": "New Town Coffee", "cat": "kafe"}, {"id": "halisunasyon-coffee-art", "name": "Halisünasyon Coffee • Art", "cat": "kafe"}, {"id": "the-populist", "name": "The Populist", "cat": "restoran"}, {"id": "babylon-bomonti", "name": "Babylon Bomonti", "cat": "restoran"}, {"id": "blok-mekan", "name": "Blok Mekan", "cat": "restoran"}, {"id": "rovers-irish-pub", "name": "Rovers Irish Pub", "cat": "restoran"}, {"id": "turk-fatih-tutak", "name": "TURK Fatih Tutak", "cat": "restoran"}, {"id": "kaya-doner", "name": "Kaya Döner", "cat": "restoran"}, {"id": "sunny-smash-burger", "name": "Sunny Smash Burger", "cat": "restoran"}, {"id": "cross-fingers-bomonti", "name": "Cross Fingers", "cat": "restoran"}, {"id": "norr-eatery", "name": "Norr Eatery", "cat": "restoran"}, {"id": "biber-burger", "name": "Biber Burger", "cat": "restoran"}, {"id": "dominos-bomonti", "name": "Domino's Pizza (Bomonti Şb.)", "cat": "restoran"}, {"id": "little-caesars-bomonti", "name": "Little Caesars (Bomonti Şb.)", "cat": "restoran"}, {"id": "casa-cooklife", "name": "Casa Cooklife", "cat": "restoran"}, {"id": "kiva-bomonti", "name": "Kiva Bomonti", "cat": "restoran"}, {"id": "isola-bomonti", "name": "Isola Food + Cocktail Bar", "cat": "restoran"}, {"id": "batard-bomonti", "name": "Batard", "cat": "restoran"}, {"id": "wu-bomonti", "name": "Wu Bomonti", "cat": "restoran"}, {"id": "the-ordinary-bomonti", "name": "The Ordinary Bomonti", "cat": "restoran"}, {"id": "cloud-34", "name": "Cloud 34", "cat": "restoran"}, {"id": "seoul-kitchen-bomontiada", "name": "Seoul Kitchen", "cat": "restoran"}, {"id": "bart-bomonti", "name": "Bart", "cat": "restoran"}, {"id": "tiflisi-restoran", "name": "Tiflisi Restoran", "cat": "restoran"}, {"id": "gyuto-gida", "name": "Gyuto Gıda (Sushi & Chinese)", "cat": "restoran"}, {"id": "merletto-pizza", "name": "Merletto Pizza", "cat": "restoran"}, {"id": "plus-sandwich", "name": "Plus Sandwich", "cat": "restoran"}, {"id": "bahar-pastanesi-bomonti", "name": "Bahar Pastanesi (Bomonti Şubesi)", "cat": "esnaf"}, {"id": "bircan-market", "name": "Bircan Market", "cat": "esnaf"}, {"id": "ferikoy-antika-pazari", "name": "Feriköy Antika Pazarı", "cat": "esnaf"}, {"id": "ferikoy-organik-pazari", "name": "Feriköy Organik Pazarı", "cat": "esnaf"}, {"id": "akat-pastanesi", "name": "Akat Pastanesi", "cat": "esnaf"}, {"id": "sutluce-kadayif", "name": "Sütlüce Kadayıf", "cat": "esnaf"}, {"id": "cagdas-borek", "name": "Çağdaş Börek", "cat": "esnaf"}, {"id": "marsel-delights", "name": "Marsel Delights", "cat": "esnaf"}, {"id": "rio-pastanesi", "name": "Rio Pastanesi", "cat": "esnaf"}, {"id": "gelateria-bonacci", "name": "Gelateria Bonacci", "cat": "esnaf"}, {"id": "mood-pilates", "name": "Mood Pilates", "cat": "esnaf"}, {"id": "vigor-pilates-bomonti", "name": "Vigor Pilates Bomonti", "cat": "esnaf"}, {"id": "griffin-bomonti", "name": "Griffin Bomonti", "cat": "esnaf"}, {"id": "ara-guler-muzesi", "name": "Ara Güler Müzesi", "cat": "atolye"}, {"id": "atolye-bomontiada", "name": "ATÖLYE", "cat": "atolye"}, {"id": "bomonti-art-studio", "name": "Bomonti Art Studio", "cat": "atolye"}, {"id": "bomonti-eczanesi", "name": "Bomonti Eczanesi", "cat": "eczane"}, {"id": "elysium-eczanesi", "name": "Elysium Eczanesi", "cat": "eczane"}, {"id": "sisli-merkez-eczanesi", "name": "Şişli Merkez Eczanesi", "cat": "eczane"}, {"id": "hulya-hatun-eczanesi", "name": "Hülya Hatun Eczanesi", "cat": "eczane"}, {"id": "nefes-eczanesi", "name": "Nefes Eczanesi", "cat": "eczane"}, {"id": "ferikoy-merkez-eczanesi", "name": "Feriköy Merkez Eczanesi", "cat": "eczane"}, {"id": "sisli-etfal-bomonti", "name": "Şişli Etfal Bomonti Ek Hizmet Binası", "cat": "hastane"}, {"id": "nisantasi-aile-sagligi-merkezi", "name": "Nişantaşı Aile Sağlığı Merkezi", "cat": "hastane"}, {"id": "green-line-veteriner", "name": "Green Line Veteriner Kliniği", "cat": "hastane"}, {"id": "hilton-istanbul-bomonti", "name": "Hilton Istanbul Bomonti Hotel & Conference Center", "cat": "otel"}, {"id": "mercure-istanbul-bomonti", "name": "Mercure Istanbul Bomonti", "cat": "otel"}, {"id": "gleam-bomonti-hotel", "name": "Gleam Bomonti Hotel", "cat": "otel"}, {"id": "la-wisteria-bomonti", "name": "La Wisteria Boutique Hotel Istanbul", "cat": "otel"}, {"id": "sparkle-hotel", "name": "Sparkle Hotel", "cat": "otel"}, {"id": "ramada-encore-sisli", "name": "Ramada Encore by Wyndham Istanbul Sisli", "cat": "otel"}, {"id": "7-bomonti-kuafor", "name": "7 Bomonti Kuaför", "cat": "kuafor"}, {"id": "hair-mess-bomonti", "name": "Hair Mess Bomonti", "cat": "kuafor"}, {"id": "duru-bomonti", "name": "Duru Bomonti", "cat": "kuafor"}, {"id": "bomonti-pet-kuaforu", "name": "Bomonti Pet Kuaförü", "cat": "kuafor"}, {"id": "jammins-vinyl-records", "name": "Jammin's Vinyl Records", "cat": "kitap"}, {"id": "gold-plak", "name": "Gold Plak", "cat": "kitap"}];
+const CAT_LABEL = {etkinlik:"Etkinlik",duyuru:"Duyuru",kampanya:"Kampanya",kayip:"Kayıp İlan",genel:"Genel"};
+const VENUE_NAME = Object.fromEntries(VENUES.map(v => [v.id, v.name]));
+
+const $ = id => document.getElementById(id);
+let db, records = [], current = null, filter = "etkinlik";
+
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>t.hidden=true,3200); }
+
+// venue select, grouped
+(function fillVenues(){
+  const groups = {kafe:"Kafe",restoran:"Restoran / Lokanta",esnaf:"Esnaf",eczane:"Eczane",hastane:"Hastane",otel:"Otel",atolye:"Sanat / Atölye",kuafor:"Kuaför",kitap:"Kitap / Plak"};
+  const sel=$("venue");
+  for (const [cat,label] of Object.entries(groups)){
+    const og=document.createElement("optgroup"); og.label=label;
+    VENUES.filter(v=>v.cat===cat).sort((a,b)=>a.name.localeCompare(b.name,"tr")).forEach(v=>{
+      const o=document.createElement("option"); o.value=v.id; o.textContent=v.name; og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }
+})();
+
+(function fillFilters(){
+  const f=$("filters");
+  [["etkinlik","Etkinlikler"],["duyuru","Duyurular"],["diger","Diğer"],["tum","Tümü"]].forEach(([k,l])=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=l; b.dataset.k=k;
+    b.setAttribute("aria-pressed", String(k===filter));
+    b.onclick=()=>{filter=k; f.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.k===k))); render();};
+    f.appendChild(b);
+  });
+})();
+
+const fmtDay = new Intl.DateTimeFormat("tr-TR",{day:"numeric"});
+const fmtMon = new Intl.DateTimeFormat("tr-TR",{month:"short",weekday:"short"});
+const fmtTime = new Intl.DateTimeFormat("tr-TR",{hour:"2-digit",minute:"2-digit"});
+
+function val(r,f){ return r.fields[f] ? r.fields[f].value : undefined; }
+
+function render(){
+  const rows=$("rows"); rows.innerHTML="";
+  let list=records.filter(r=>{
+    const c=val(r,"category");
+    if(filter==="tum") return true;
+    if(filter==="diger") return c!=="etkinlik" && c!=="duyuru";
+    return c===filter;
+  });
+  const now=Date.now(), startToday=new Date().setHours(0,0,0,0);
+  if(filter==="etkinlik"){
+    list.sort((a,b)=>{
+      const da=val(a,"eventDate")||0, db_=val(b,"eventDate")||0;
+      const pa=da<startToday, pb=db_<startToday;
+      if(pa!==pb) return pa?1:-1;
+      return pa? db_-da : da-db_;
+    });
+  }
+  if(!list.length){ rows.innerHTML='<div class="empty">Bu bölümde henüz kayıt yok. Sağdaki formdan ilkini ekleyebilirsin.</div>'; return; }
+  for(const r of list){
+    const c=val(r,"category"), ev=val(r,"eventDate"), cr=val(r,"createdAt");
+    const d=new Date(c==="etkinlik"&&ev?ev:(cr||Date.now()));
+    const past = c==="etkinlik" && ev && ev<startToday;
+    const b=document.createElement("button"); b.type="button"; b.className="row";
+    if(current&&current.recordName===r.recordName) b.setAttribute("aria-current","true");
+    const venue=val(r,"venueId");
+    b.innerHTML=`<div class="date"><strong></strong><span></span></div><div style="min-width:0"><div class="title"></div><div class="meta"></div></div><span class="tag ${c}${past?" past":""}"></span>`;
+    b.querySelector(".date strong").textContent=fmtDay.format(d);
+    b.querySelector(".date span").textContent=fmtMon.format(d);
+    b.querySelector(".title").textContent=val(r,"title")||"(başlıksız)";
+    b.querySelector(".meta").textContent=[venue?(VENUE_NAME[venue]||venue):null, c==="etkinlik"&&ev&&hasTime(ev)?fmtTime.format(new Date(ev)):null].filter(Boolean).join(" · ")||"Mekan yok";
+    b.querySelector(".tag").textContent=past?"Geçti":(CAT_LABEL[c]||c);
+    b.onclick=()=>edit(r);
+    rows.appendChild(b);
+  }
+}
+
+// An event saved without a time is stored at 12:00 local, so that one counts as "no time".
+function hasTime(ms){ const d=new Date(ms); return !(d.getHours()===12 && d.getMinutes()===0); }
+function pad(n){return String(n).padStart(2,"0");}
+
+function syncDateRow(){ $("dateRow").hidden = $("category").value!=="etkinlik"; }
+$("category").onchange=syncDateRow;
+
+function resetForm(){
+  current=null; $("form").reset(); $("formTitle").textContent="Yeni kayıt"; $("saveBtn").textContent="Yayınla";
+  $("delBtn").hidden=true; $("confirm").hidden=true; $("imageNote").textContent="";
+  $("category").value = filter==="duyuru" ? "duyuru" : "etkinlik"; syncDateRow(); render();
+}
+$("newBtn").onclick=resetForm;
+
+function edit(r){
+  current=r; $("confirm").hidden=true;
+  $("formTitle").textContent="Kaydı düzenle"; $("saveBtn").textContent="Değişiklikleri kaydet"; $("delBtn").hidden=false;
+  $("category").value=val(r,"category")||"genel";
+  $("venue").value=val(r,"venueId")||"";
+  $("title").value=val(r,"title")||""; $("body").value=val(r,"body")||""; $("contact").value=val(r,"contact")||"";
+  const ev=val(r,"eventDate");
+  if(ev){ const d=new Date(ev); $("eventDay").value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; $("eventTime").value=hasTime(ev)?`${pad(d.getHours())}:${pad(d.getMinutes())}`:""; }
+  else { $("eventDay").value=""; $("eventTime").value=""; }
+  $("image").value=""; $("imageNote").textContent = r.fields.image ? "Bu kayıtta bir görsel var; yeni dosya seçersen değiştirilir." : "";
+  syncDateRow(); render(); window.scrollTo({top:0,behavior:"smooth"});
+}
+
+$("form").onsubmit=async e=>{
+  e.preventDefault();
+  const cat=$("category").value, title=$("title").value.trim(), body=$("body").value.trim();
+  if(!title||!body){ toast("Başlık ve açıklama zorunlu."); return; }
+  let eventDate=null;
+  if(cat==="etkinlik"){
+    if(!$("eventDay").value){ toast("Etkinlik için tarih seç."); return; }
+    const [y,m,d]=$("eventDay").value.split("-").map(Number);
+    const [hh,mm]=($("eventTime").value||"12:00").split(":").map(Number);
+    eventDate=new Date(y,m-1,d,hh,mm).getTime();
+  }
+  const fields={
+    category:{value:cat}, title:{value:title}, body:{value:body},
+    author:{value:"BomontiNEWS"},
+    contact:{value:$("contact").value.trim()||null},
+    venueId:{value:$("venue").value||null},
+    eventDate:{value:eventDate},
+    createdAt:{value: current ? (val(current,"createdAt")||Date.now()) : Date.now()}
+  };
+  const file=$("image").files[0]; if(file) fields.image={value:file};
+  const rec={recordType:"Post", fields};
+  if(current){ rec.recordName=current.recordName; rec.recordChangeTag=current.recordChangeTag; }
+  else { rec.recordName=crypto.randomUUID().toUpperCase(); }
+  $("saveBtn").disabled=true;
+  try{
+    const res=await db.saveRecords([rec]);
+    if(res.hasErrors) throw res.errors[0];
+    toast(current?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.");
+    await load(); resetForm();
+  }catch(err){ toast(explain(err)); }
+  finally{ $("saveBtn").disabled=false; }
+};
+
+$("delBtn").onclick=()=>{$("confirm").hidden=false;};
+$("cancelDel").onclick=()=>{$("confirm").hidden=true;};
+$("confirmDel").onclick=async()=>{
+  if(!current) return;
+  try{
+    const res=await db.deleteRecords([current.recordName]);
+    if(res.hasErrors) throw res.errors[0];
+    toast("Silindi."); await load(); resetForm();
+  }catch(err){ toast(explain(err)); }
+};
+
+function explain(err){
+  const code = err && (err.ckErrorCode || err.serverErrorCode);
+  if(code==="NOT_AUTHENTICATED"||code==="AUTHENTICATION_REQUIRED") return "Oturumun kapanmış. Sayfayı yenileyip tekrar giriş yap.";
+  if(code==="ACCESS_DENIED"||code==="PERMISSION_FAILURE") return "Bu hesabın kayıt ekleme yetkisi yok.";
+  if(code==="CONFLICT") return "Kayıt başka yerden değiştirilmiş. Listeyi yenileyip tekrar dene.";
+  return "İşlem tamamlanamadı: " + (err && (err.reason||err.message) || "bilinmeyen hata");
+}
+
+async function load(){
+  const res=await db.performQuery({recordType:"Post"},{resultsLimit:200, desiredKeys:null});
+  if(res.hasErrors) throw res.errors[0];
+  records=res.records.sort((a,b)=>(val(b,"createdAt")||0)-(val(a,"createdAt")||0));
+  render();
+}
+
+function gotUser(user){
+  $("gate").hidden=true; $("app").hidden=false;
+  $("who").textContent = user && user.nameComponents ? `${user.nameComponents.givenName||""} ${user.nameComponents.familyName||""}`.trim() : "Giriş yapıldı";
+  load().catch(err=>toast(explain(err)));
+  resetForm();
+  container.whenUserSignsOut().then(()=>{ location.reload(); });
+}
+
+let container;
+function boot(){
+  if(!window.CloudKit){ $("configMsg").hidden=false; $("configMsg").textContent="CloudKit kütüphanesi yüklenemedi. İnternet bağlantını kontrol et."; return; }
+  if(API_TOKEN.startsWith("__")){ $("configMsg").hidden=false; $("configMsg").textContent="API anahtarı henüz eklenmedi."; return; }
+  CloudKit.configure({containers:[{containerIdentifier:CONTAINER, apiTokenAuth:{apiToken:API_TOKEN, persist:true, signInButton:{id:"apple-sign-in-button",theme:"black"}, signOutButton:{id:"apple-sign-out-button",theme:"black"}}, environment:"production"}]});
+  container=CloudKit.getDefaultContainer(); db=container.publicCloudDatabase;
+  container.setUpAuth().then(user=>{
+    if(user) gotUser(user);
+    else container.whenUserSignsIn().then(gotUser);
+  }).catch(err=>{ $("configMsg").hidden=false; $("configMsg").textContent="Bağlantı kurulamadı: "+(err.reason||err.message||err); });
+}
+boot();
+</script>
+</body>
+</html>
