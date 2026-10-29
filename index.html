@@ -50,6 +50,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;fl
 .tag.etkinlik{background:color-mix(in srgb,var(--teal) 16%,transparent);color:var(--teal)}
 .tag.duyuru,.tag.genel,.tag.kampanya,.tag.kayip{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted)}
 .tag.past{opacity:.6}
+.tag.scheduled{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
 .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 form{padding:18px;display:flex;flex-direction:column;gap:14px}
 form h2{font:800 20px var(--display);margin:0}
@@ -123,6 +124,11 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <label>İletişim <span class="hint">isteğe bağlı: telefon, link</span><input id="contact" maxlength="200"></label>
         <label>Görsel <span class="hint">isteğe bağlı, tek görsel; yüklemeden önce otomatik küçültülür</span><input id="image" type="file" accept="image/*"><span class="hint" id="imageNote"></span></label>
         <div class="preview" id="preview" hidden><img id="previewImg" alt="Seçilen görselin önizlemesi"><button class="btn" type="button" id="clearImage">Görseli kaldır</button></div>
+        <label class="check" id="scheduleToggleRow"><input id="scheduleOn" type="checkbox"><span>İleri tarihte yayınla<br><span class="hint">Kayıt seçtiğin zamana kadar uygulamada görünmez; bildirim seçiliyse o saatte gider (5 dakikaya kadar gecikebilir).</span></span></label>
+        <div class="two" id="scheduleRow" hidden>
+          <label>Yayın günü<input id="pubDay" type="date"></label>
+          <label>Yayın saati<input id="pubTime" type="time"></label>
+        </div>
         <label class="check" id="notifyRow" hidden><input id="notify" type="checkbox"><span>Bildirim gönder<br><span class="hint">Yayınlayınca uygulamayı yükleyip bildirime izin veren herkese bu kaydın başlığıyla bildirim gider. Her kayıt için bir kez.</span></span></label>
         <div class="actions">
           <button class="btn primary" type="submit" id="saveBtn">Yayınla</button>
@@ -192,6 +198,7 @@ function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clea
 const fmtDay = new Intl.DateTimeFormat("tr-TR",{day:"numeric"});
 const fmtMon = new Intl.DateTimeFormat("tr-TR",{month:"short",weekday:"short"});
 const fmtTime = new Intl.DateTimeFormat("tr-TR",{hour:"2-digit",minute:"2-digit"});
+const fmtWhen = new Intl.DateTimeFormat("tr-TR",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"});
 
 function val(r,f){ return r.fields[f] ? r.fields[f].value : undefined; }
 
@@ -217,15 +224,17 @@ function render(){
     const c=val(r,"category"), ev=val(r,"eventDate"), cr=val(r,"createdAt");
     const d=new Date(c==="etkinlik"&&ev?ev:(cr||Date.now()));
     const past = c==="etkinlik" && ev && ev<startToday;
+    const scheduled = cr && cr>now;
     const b=document.createElement("button"); b.type="button"; b.className="row";
     if(current&&current.recordName===r.recordName) b.setAttribute("aria-current","true");
     const venue=val(r,"venueId");
-    b.innerHTML=`<div class="date"><strong></strong><span></span></div><div style="min-width:0"><div class="title"></div><div class="meta"></div></div><span class="tag ${c}${past?" past":""}"></span>`;
+    b.innerHTML=`<div class="date"><strong></strong><span></span></div><div style="min-width:0"><div class="title"></div><div class="meta"></div></div><span class="tag ${scheduled?"scheduled":c}${past?" past":""}"></span>`;
     b.querySelector(".date strong").textContent=fmtDay.format(d);
     b.querySelector(".date span").textContent=fmtMon.format(d);
     b.querySelector(".title").textContent=val(r,"title")||"(başlıksız)";
     b.querySelector(".meta").textContent=[venue?(VENUE_NAME[venue]||venue):null, c==="etkinlik"&&ev&&hasTime(ev)?fmtTime.format(new Date(ev)):null].filter(Boolean).join(" · ")||"Mekan yok";
-    b.querySelector(".tag").textContent=past?"Geçti":(CAT_LABEL[c]||c);
+    b.querySelector(".tag").textContent=scheduled?"Planlı":past?"Geçti":(CAT_LABEL[c]||c);
+    if(scheduled) b.querySelector(".meta").textContent+=" · Yayın: "+fmtWhen.format(new Date(cr));
     b.onclick=()=>edit(r);
     rows.appendChild(b);
   }
@@ -238,11 +247,22 @@ function pad(n){return String(n).padStart(2,"0");}
 function syncDateRow(){ $("dateRow").hidden = $("category").value!=="etkinlik"; }
 $("category").onchange=syncDateRow;
 
+// Planlı kayıtlarda createdAt yayın zamanıdır; uygulama o zamana kadar göstermez.
+function syncSchedule(){ $("scheduleRow").hidden=!$("scheduleOn").checked; }
+$("scheduleOn").onchange=()=>{
+  if($("scheduleOn").checked && !$("pubDay").value){
+    const t=new Date(Date.now()+24*3600*1000);
+    $("pubDay").value=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; $("pubTime").value="10:00";
+  }
+  syncSchedule();
+};
+
 function resetForm(){
   current=null; $("form").reset(); $("formTitle").textContent="Yeni kayıt"; $("saveBtn").textContent="Yayınla";
   $("delBtn").hidden=true; $("confirm").hidden=true; $("imageNote").textContent="";
   pendingImage=null; removeImage=false; $("preview").hidden=true;
   $("notifyRow").hidden=!NOTIFY_URL.startsWith("https"); $("notify").checked=false;
+  $("scheduleToggleRow").hidden=false; $("scheduleOn").checked=false; $("pubDay").value=""; $("pubTime").value=""; syncSchedule();
   $("category").value = filter==="duyuru" ? "duyuru" : "etkinlik"; syncDateRow(); render();
 }
 $("newBtn").onclick=resetForm;
@@ -257,7 +277,11 @@ function edit(r){
   if(ev){ const d=new Date(ev); $("eventDay").value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; $("eventTime").value=hasTime(ev)?`${pad(d.getHours())}:${pad(d.getMinutes())}`:""; }
   else { $("eventDay").value=""; $("eventTime").value=""; }
   $("image").value=""; pendingImage=null; removeImage=false;
-  $("notifyRow").hidden=true;
+  const cr=val(r,"createdAt"), isScheduled=!!cr && cr>Date.now();
+  $("scheduleToggleRow").hidden=!isScheduled; $("scheduleOn").checked=isScheduled;
+  if(isScheduled){ const p=new Date(cr); $("pubDay").value=`${p.getFullYear()}-${pad(p.getMonth()+1)}-${pad(p.getDate())}`; $("pubTime").value=`${pad(p.getHours())}:${pad(p.getMinutes())}`; }
+  syncSchedule();
+  $("notifyRow").hidden=!isScheduled || !NOTIFY_URL.startsWith("https"); $("notify").checked=isScheduled && val(r,"notify")===1;
   if(r.fields.image && r.fields.image.value && r.fields.image.value.downloadURL){ $("previewImg").src=r.fields.image.value.downloadURL; $("preview").hidden=false; $("imageNote").textContent="Bu kayıtta bir görsel var; yeni dosya seçersen değiştirilir."; }
   else { $("preview").hidden=true; $("imageNote").textContent=""; }
   syncDateRow(); render(); window.scrollTo({top:0,behavior:"smooth"});
@@ -299,14 +323,26 @@ $("form").onsubmit=async e=>{
     const [hh,mm]=($("eventTime").value||"12:00").split(":").map(Number);
     eventDate=new Date(y,m-1,d,hh,mm).getTime();
   }
+  let publishAt=null;
+  if($("scheduleOn").checked){
+    if(!$("pubDay").value||!$("pubTime").value){ toast("Yayın günü ve saatini seç."); return; }
+    const [py,pm,pd]=$("pubDay").value.split("-").map(Number);
+    const [ph,pmin]=$("pubTime").value.split(":").map(Number);
+    publishAt=new Date(py,pm-1,pd,ph,pmin).getTime();
+    if(publishAt<=Date.now()+60*1000){ toast("Yayın zamanı en az birkaç dakika sonrası olmalı."); return; }
+  }
+  const wasScheduled = !!current && (val(current,"createdAt")||0)>Date.now();
   const fields={
     category:{value:cat}, title:{value:title}, body:{value:body},
     author:{value:"BomontiNEWS"},
     contact:{value:$("contact").value.trim()||null},
     venueId:{value:$("venue").value||null},
     eventDate:{value:eventDate},
-    createdAt:{value: current ? (val(current,"createdAt")||Date.now()) : Date.now()}
+    createdAt:{value: publishAt ?? (current && !wasScheduled ? (val(current,"createdAt")||Date.now()) : Date.now())}
   };
+  // notify alanı yalnızca gerektiğinde yazılır; böylece planlı yayın bildirimsiz de çalışır.
+  if(publishAt && $("notify").checked) fields.notify={value:1};
+  else if(publishAt && current && val(current,"notify")===1) fields.notify={value:0};
   if(pendingImage) fields.image={value:pendingImage};
   else if(removeImage) fields.image={value:null};
   const rec={recordType:"Post", fields};
@@ -317,8 +353,13 @@ $("form").onsubmit=async e=>{
     const res=await db.saveRecords([rec]);
     if(res.hasErrors) throw res.errors[0];
     const saved=res.records[0];
-    let msg=current?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.";
-    if(!current && $("notify").checked && NOTIFY_URL.startsWith("https")) msg += " " + await sendNotification(saved.recordName);
+    let msg;
+    if(publishAt){
+      msg=`Planlandı: ${fmtWhen.format(new Date(publishAt))} itibarıyla uygulamada görünecek.` + ($("notify").checked?" Bildirim o saatte gönderilecek.":"");
+    }else{
+      msg=current&&!wasScheduled?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.";
+      if(!current && $("notify").checked && NOTIFY_URL.startsWith("https")) msg += " " + await sendNotification(saved.recordName);
+    }
     toast(msg);
     await load(); resetForm();
   }catch(err){ toast(explain(err)); }
