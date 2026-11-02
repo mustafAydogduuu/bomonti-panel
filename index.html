@@ -124,7 +124,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
         <label>İletişim <span class="hint">isteğe bağlı: telefon, link</span><input id="contact" maxlength="200"></label>
         <label>Görsel <span class="hint">isteğe bağlı, tek görsel; yüklemeden önce otomatik küçültülür</span><input id="image" type="file" accept="image/*"><span class="hint" id="imageNote"></span></label>
         <div class="preview" id="preview" hidden><img id="previewImg" alt="Seçilen görselin önizlemesi"><button class="btn" type="button" id="clearImage">Görseli kaldır</button></div>
-        <label class="check" id="scheduleToggleRow"><input id="scheduleOn" type="checkbox"><span>İleri tarihte yayınla<br><span class="hint">Kayıt seçtiğin zamana kadar uygulamada görünmez; bildirim seçiliyse o saatte gider (5 dakikaya kadar gecikebilir).</span></span></label>
+        <label class="check" id="scheduleToggleRow"><input id="scheduleOn" type="checkbox"><span>İleri tarihte yayınla<br><span class="hint">Kayıt seçtiğin zamana kadar uygulamada görünmez. Planlı kayıtlar için bildirim gönderilmez.</span></span></label>
         <div class="two" id="scheduleRow" hidden>
           <label>Yayın günü<input id="pubDay" type="date"></label>
           <label>Yayın saati<input id="pubTime" type="time"></label>
@@ -248,7 +248,13 @@ function syncDateRow(){ $("dateRow").hidden = $("category").value!=="etkinlik"; 
 $("category").onchange=syncDateRow;
 
 // Planlı kayıtlarda createdAt yayın zamanıdır; uygulama o zamana kadar göstermez.
-function syncSchedule(){ $("scheduleRow").hidden=!$("scheduleOn").checked; }
+function syncSchedule(){
+  const on=$("scheduleOn").checked;
+  $("scheduleRow").hidden=!on;
+  // Planlı kayıtlar için bildirim yok; bildirim yalnızca hemen yayınlanan yeni kayıtlarda.
+  $("notifyRow").hidden=on || !!current || !NOTIFY_URL.startsWith("https");
+  if(on) $("notify").checked=false;
+}
 $("scheduleOn").onchange=()=>{
   if($("scheduleOn").checked && !$("pubDay").value){
     const t=new Date(Date.now()+24*3600*1000);
@@ -281,7 +287,7 @@ function edit(r){
   $("scheduleToggleRow").hidden=!isScheduled; $("scheduleOn").checked=isScheduled;
   if(isScheduled){ const p=new Date(cr); $("pubDay").value=`${p.getFullYear()}-${pad(p.getMonth()+1)}-${pad(p.getDate())}`; $("pubTime").value=`${pad(p.getHours())}:${pad(p.getMinutes())}`; }
   syncSchedule();
-  $("notifyRow").hidden=!isScheduled || !NOTIFY_URL.startsWith("https"); $("notify").checked=isScheduled && val(r,"notify")===1;
+  $("notifyRow").hidden=true; $("notify").checked=false;
   if(r.fields.image && r.fields.image.value && r.fields.image.value.downloadURL){ $("previewImg").src=r.fields.image.value.downloadURL; $("preview").hidden=false; $("imageNote").textContent="Bu kayıtta bir görsel var; yeni dosya seçersen değiştirilir."; }
   else { $("preview").hidden=true; $("imageNote").textContent=""; }
   syncDateRow(); render(); window.scrollTo({top:0,behavior:"smooth"});
@@ -340,9 +346,6 @@ $("form").onsubmit=async e=>{
     eventDate:{value:eventDate},
     createdAt:{value: publishAt ?? (current && !wasScheduled ? (val(current,"createdAt")||Date.now()) : Date.now())}
   };
-  // notify alanı yalnızca gerektiğinde yazılır; böylece planlı yayın bildirimsiz de çalışır.
-  if(publishAt && $("notify").checked) fields.notify={value:1};
-  else if(publishAt && current && val(current,"notify")===1) fields.notify={value:0};
   if(pendingImage) fields.image={value:pendingImage};
   else if(removeImage) fields.image={value:null};
   const rec={recordType:"Post", fields};
@@ -355,7 +358,7 @@ $("form").onsubmit=async e=>{
     const saved=res.records[0];
     let msg;
     if(publishAt){
-      msg=`Planlandı: ${fmtWhen.format(new Date(publishAt))} itibarıyla uygulamada görünecek.` + ($("notify").checked?" Bildirim o saatte gönderilecek.":"");
+      msg=`Planlandı: ${fmtWhen.format(new Date(publishAt))} itibarıyla uygulamada görünecek.`;
     }else{
       msg=current&&!wasScheduled?"Değişiklikler kaydedildi.":"Yayınlandı. Uygulamada görünüyor.";
       if(!current && $("notify").checked && NOTIFY_URL.startsWith("https")) msg += " " + await sendNotification(saved.recordName);
